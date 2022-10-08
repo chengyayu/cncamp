@@ -23,7 +23,7 @@ func init() {
 }
 
 func main() {
-	http.HandleFunc("/healthz", mid(healthzHandler))
+	http.HandleFunc("/health", mid(healthHandler))
 	http.HandleFunc("/", mid(headerHandler))
 
 	err := http.ListenAndServe(":8080", nil)
@@ -34,24 +34,23 @@ func main() {
 
 func headerHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
-	w.Header().Add("Content-Type", "application/json")
 	io.WriteString(w, "===================Details of the http request header:============\n")
 	for k, v := range r.Header {
 		io.WriteString(w, fmt.Sprintf("%s=%s\n", k, v))
 	}
 }
 
-func healthzHandler(w http.ResponseWriter, r *http.Request) {
+func healthHandler(w http.ResponseWriter, r *http.Request) {
+	content, _ := json.Marshal(Resp{Code: 200, Data: "ok"})
 	w.WriteHeader(http.StatusOK)
-	w.Header().Add("Content-Type", "application/json")
-	w.Header().Add(VERSION, os.Getenv(VERSION))
-
-	content, _ := json.Marshal("ok")
 	w.Write(content)
 }
 
 func mid(f http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.Header().Add(VERSION, os.Getenv(VERSION))
 
 		clientIP, err := getIP(r)
 		if err != nil {
@@ -60,7 +59,7 @@ func mid(f http.HandlerFunc) http.HandlerFunc {
 
 		f(w, r)
 
-		logrus.WithField("clientIP", clientIP).WithField("respCode", w.Header()).Infoln("dddd")
+		logrus.WithField("clientIP", clientIP).WithField("respCode", w.Header().Get("Status-Code")).Infoln()
 	}
 }
 
@@ -87,4 +86,9 @@ func getIP(r *http.Request) (string, error) {
 	}
 
 	return "", errors.New("no valid ip found")
+}
+
+type Resp struct {
+	Code int
+	Data string
 }
